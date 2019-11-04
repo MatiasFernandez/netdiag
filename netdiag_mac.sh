@@ -2,7 +2,7 @@
 
 # ***** Helpers *****
 
-# Colors
+# functions to print out using colors
 end="\033[0m"
 black="\033[0;30m"
 blackb="\033[1;30m"
@@ -38,49 +38,61 @@ function purpleb { echo -e "${purpleb}${1}${end}"; }
 function lightblue { echo -e "${lightblue}${1}${end}"; }
 function lightblueb { echo -e "${lightblueb}${1}${end}"; }
 
+# Functions to fetch network data
+function default_gateway { netstat -nr | grep -m 1 default | awk '{print $2}'; }
+function wifi_signal { cat $OUT_DIR/current_wifi | grep agrCtlRSSI | awk '{print $2}'; }
+function wifi_noise { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk '{print $2}'; }
+function wifi_phy_rate { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
+function record_current_wifi_details { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
+function record_ip_details { ifconfig > $OUT_DIR/ifconfig; } 
+function ping_host { ping -c 60 $1 > $OUT_DIR/$2_ping & }
+
 # ***** Run analysis *****
 
-OUT=netreport
-mkdir -p $OUT
+OUT_DIR=netreport
+mkdir -p $OUT_DIR
 
 echo "Recopilando informacion de la red..."
-ifconfig > $OUT/ifconfig
-/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT/current_wifi
 
-SIGNAL=`cat $OUT/current_wifi | grep agrCtlRSSI | awk '{print $2}'`
-NOISE=`cat $OUT/current_wifi | grep agrCtlNoise | awk '{print $2}'`
-DATARATE=`cat $OUT/current_wifi | grep lastTxRate | awk '{print $2}'`
-SNR=$(expr $SIGNAL - $NOISE)
-SIGNAL_STATUS=[$(green "BUENA" )] && [[ $SIGNAL -lt -67 ]] && SIGNAL_STATUS="[BAJA]"
-SNR_STATUS=[$(green "BUENO")] && [[ $SNR -lt 25 ]] && SNR_STATUS="[BAJO]"
+record_ip_details
+record_current_wifi_details
+
+signal=$(wifi_signal)
+noise=$(wifi_noise)
+datarate=$(wifi_phy_rate)
+snr=$(expr $signal - $noise)
+signal_status=[$(green "BUENA" )] && [[ $signal -lt -67 ]] && signal_status="[BAJA]"
+snr_status=[$(green "BUENO")] && [[ $snr -lt 25 ]] && snr_status="[BAJO]"
 
 echo $(lightblueb "Resultado:")
-echo $(whiteb "Señal:") $SIGNAL dBm $SIGNAL_STATUS
-echo $(whiteb "Interferencia:") $NOISE dBm
-echo $(whiteb "SNR:") $SNR dBm $SNR_STATUS
-echo $(whiteb "Data rate PHY:") $DATARATE Mbps
-echo $(whiteb "Velocidad máxima TCP/IP:") $(expr $DATARATE / 2) Mbps
+echo $(whiteb "Señal:") $signal dBm $signal_status
+echo $(whiteb "Interferencia:") $noise dBm
+echo $(whiteb "SNR:") $snr dBm $snr_status
+echo $(whiteb "Data rate PHY:") $datarate Mbps
+echo $(whiteb "Velocidad máxima TCP/IP:") $(expr $datarate / 2) Mbps
 
 echo "Midiendo latencia durante 1 minuto..."
-DEFAULT_GATEWAY=`netstat -nr | grep -m 1 default | awk '{print $2}'`
 
-ping -c 60 8.8.8.8 > $OUT/dns_ping &
-ping -c 60 $DEFAULT_GATEWAY > $OUT/gateway_ping &
+default_gateway=$(default_gateway)
+
+ping_host 8.8.8.8 dns
+ping_host $default_gateway gateway
 wait
+
 echo "Completado"
 
-GATEWAY_AGGREGATE_PING=`tail -n 1 $OUT/gateway_ping | sed 's/.*= \(.*\) ms/\1/'`
-GATEWAY_AVG_PING=`echo $GATEWAY_AGGREGATE_PING | awk -F / '{ print $2 }'`
-GATEWAY_MAX_PING=`echo $GATEWAY_AGGREGATE_PING | awk -F / '{ print $3 }'`
+gateway_ping_summary=`tail -n 1 $OUT_DIR/gateway_ping | sed 's/.*= \(.*\) ms/\1/'`
+gateway_avg_ping=`echo $gateway_ping_summary | awk -F / '{ print $2 }'`
+gateway_max_ping=`echo $gateway_ping_summary | awk -F / '{ print $3 }'`
 
-DNS_AGGREGATE_PING=`tail -n 1 $OUT/dns_ping | sed 's/.*= \(.*\) ms/\1/'`
-DNS_AVG_PING=`echo $DNS_AGGREGATE_PING | awk -F / '{ print $2 }'`
-DNS_MAX_PING=`echo $DNS_AGGREGATE_PING | awk -F / '{ print $3 }'`
+dns_ping_summary=`tail -n 1 $OUT_DIR/dns_ping | sed 's/.*= \(.*\) ms/\1/'`
+dns_avg_ping=`echo $dns_ping_summary | awk -F / '{ print $2 }'`
+dns_max_ping=`echo $dns_ping_summary | awk -F / '{ print $3 }'`
 
 echo $(lightblueb "Resultado:")
-echo $(lightblueb "Gateway:")
-echo $(whiteb "Avg:") $GATEWAY_AVG_PING ms
-echo $(whiteb "Max:") $GATEWAY_MAX_PING ms
-echo $(lightblueb "DNS:")
-echo $(whiteb "Avg:") $DNS_AVG_PING ms
-echo $(whiteb "Max:") $DNS_MAX_PING ms
+echo $(whiteb "Default Gateway ($default_gateway):")
+echo $(whiteb "Avg:") $gateway_avg_ping ms
+echo $(whiteb "Max:") $gateway_max_ping ms
+echo $(whiteb "Google DNS (8.8.8.8):")
+echo $(whiteb "Avg:") $dns_avg_ping ms
+echo $(whiteb "Max:") $dns_max_ping ms
