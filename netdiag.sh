@@ -38,23 +38,24 @@ function lightblueb { echo -e "${lightblueb}${1}${end}"; }
 
 # Mac OSX Specific Network Functions
 function default_gateway_darwin { netstat -nr | grep -m 1 default | awk '{print $2}'; }
-function wifi_signal_darwin { cat $OUT_DIR/current_wifi | grep agrCtlRSSI | awk '{print $2}'; }
-function wifi_noise_darwin { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk '{print $2}'; }
-function tx_phy_data_rate_darwin { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
+function wifi_signal_darwin { cat $OUT_DIR/wifi_info | grep agrCtlRSSI | awk '{print $2}'; }
+function wifi_noise_darwin { cat $OUT_DIR/wifi_info | grep agrCtlNoise | awk '{print $2}'; }
+function tx_phy_data_rate_darwin { cat $OUT_DIR/wifi_info | grep lastTxRate | awk '{print $2}'; }
 function rx_phy_data_rate_darwin { echo; } # OSX does not report Rx data rate
-function record_current_wifi_details_darwin { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
+function record_wifi_info_darwin { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/wifi_info; }
+function record_ip_info_darwin { ifconfig > $OUT_DIR/ip_info; } 
 
 # Linux Specific Network Functions
 function interface_name { echo /sys/class/net/*/wireless | awk -F'/' '{ print $5 }'; }
 function default_gateway_linux { ip route show | head -n 1 | sed 's/default via \(.*\) dev.*/\1/'; }
-function wifi_signal_linux { grep "signal" $OUT_DIR/current_wifi | awk '{ print $2 }'; }
+function wifi_signal_linux { grep "signal" $OUT_DIR/wifi_info | awk '{ print $2 }'; }
 function wifi_noise_linux { echo; } # I need to investigate if noise is reported in Linux
-function tx_phy_data_rate_linux { grep "tx bitrate" $OUT_DIR/current_wifi | awk '{ print $3 }'; }
-function rx_phy_data_rate_linux { grep "rx bitrate" $OUT_DIR/current_wifi | awk '{ print $3 }'; }
-function record_current_wifi_details_linux { iw dev $(interface_name) link > $OUT_DIR/current_wifi; }
+function tx_phy_data_rate_linux { grep "tx bitrate" $OUT_DIR/wifi_info | awk '{ print $3 }'; }
+function rx_phy_data_rate_linux { grep "rx bitrate" $OUT_DIR/wifi_info | awk '{ print $3 }'; }
+function record_wifi_info_linux { iw dev $(interface_name) link > $OUT_DIR/wifi_info; }
+function record_ip_info_linux { ip a > $OUT_DIR/ip_info; } 
 
 # Mac OSX and Linux Network Functions
-function record_ip_details { ifconfig > $OUT_DIR/ifconfig; } 
 function ping_host { ping -c 60 $1 > $OUT_DIR/$2_ping & }
 
 # Percentile calculation
@@ -70,8 +71,8 @@ mkdir -p $OUT_DIR
 
 echo "Recopilando informacion de la red..."
 
-record_ip_details
-record_current_wifi_details_$OS
+record_ip_info_$OS
+record_wifi_info_$OS
 
 signal=$(wifi_signal_$OS)
 tx_data_rate=$(tx_phy_data_rate_$OS)
