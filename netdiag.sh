@@ -109,23 +109,27 @@ ping_host $default_gateway gateway
 wait
 
 gateway_ping_summary=`tail -n 1 $OUT_DIR/gateway_ping | sed 's/.*= \(.*\) ms/\1/'`
+gateway_ping_packet_loss=`cat $OUT_DIR/gateway_ping | grep "packet loss" | sed 's/.* \([0-9]*\.*[0-9]*\)%.*/\1/'`
 gateway_avg_ping=`echo $gateway_ping_summary | awk -F / '{ print $2 }'`
 gateway_max_ping=`echo $gateway_ping_summary | awk -F / '{ print $3 }'`
 
 dns_ping_summary=`tail -n 1 $OUT_DIR/dns_ping | sed 's/.*= \(.*\) ms/\1/'`
+dns_ping_packet_loss=`cat $OUT_DIR/dns_ping | grep "packet loss" | sed 's/.* \([0-9]*\.*[0-9]*\)%.*/\1/'`
 dns_avg_ping=`echo $dns_ping_summary | awk -F / '{ print $2 }'`
 dns_max_ping=`echo $dns_ping_summary | awk -F / '{ print $3 }'`
 
 echo $(lightblueb "Resultado:")
-echo $(whiteb "Default Gateway ($default_gateway):")
+echo $(whiteb "Latencia a Default Gateway ($default_gateway):")
 echo $(whiteb "Avg:") $gateway_avg_ping ms
 echo $(whiteb "P50:") $(p50 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "P90:") $(p90 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "P95:") $(p95 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "Max:") $gateway_max_ping ms
-echo $(whiteb "Google DNS (8.8.8.8):")
+echo $(whiteb "Packet Loss:") $gateway_ping_packet_loss %
+echo $(whiteb "Latencia a Google DNS (8.8.8.8):")
 echo $(whiteb "Avg:") $dns_avg_ping ms
 echo $(whiteb "P50:") $(p50 $OUT_DIR/dns_ping) ms
 echo $(whiteb "P90:") $(p90 $OUT_DIR/dns_ping) ms
 echo $(whiteb "P95:") $(p95 $OUT_DIR/dns_ping) ms
 echo $(whiteb "Max:") $dns_max_ping ms
+echo $(whiteb "Packet Loss:") $dns_ping_packet_loss %
