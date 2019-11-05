@@ -39,27 +39,32 @@ function lightblue { echo -e "${lightblue}${1}${end}"; }
 function lightblueb { echo -e "${lightblueb}${1}${end}"; }
 
 # Functions to fetch network data
-function default_gateway { netstat -nr | grep -m 1 default | awk '{print $2}'; }
-function wifi_signal { cat $OUT_DIR/current_wifi | grep agrCtlRSSI | awk '{print $2}'; }
-function wifi_noise { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk '{print $2}'; }
-function wifi_phy_rate { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
-function record_current_wifi_details { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
+
+# Mac OSX Specific Functions
+function default_gateway_darwin { netstat -nr | grep -m 1 default | awk '{print $2}'; }
+function wifi_signal_darwin { cat $OUT_DIR/current_wifi | grep agrCtlRSSI | awk '{print $2}'; }
+function wifi_noise_darwin { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk '{print $2}'; }
+function wifi_phy_rate_darwin { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
+function record_current_wifi_details_darwin { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
+
+# Mac OSX and Linux Functions
 function record_ip_details { ifconfig > $OUT_DIR/ifconfig; } 
 function ping_host { ping -c 60 $1 > $OUT_DIR/$2_ping & }
 
 # ***** Run analysis *****
 
+OS=`uname -s | awk '{ print tolower($0) }'`
 OUT_DIR=netreport
 mkdir -p $OUT_DIR
 
 echo "Recopilando informacion de la red..."
 
 record_ip_details
-record_current_wifi_details
+record_current_wifi_details_$OS
 
-signal=$(wifi_signal)
-noise=$(wifi_noise)
-datarate=$(wifi_phy_rate)
+signal=$(wifi_signal_$OS)
+noise=$(wifi_noise_$OS)
+datarate=$(wifi_phy_rate_$OS)
 snr=$(expr $signal - $noise)
 signal_status=[$(green "BUENA" )] && [[ $signal -lt -67 ]] && signal_status="[BAJA]"
 snr_status=[$(green "BUENO")] && [[ $snr -lt 25 ]] && snr_status="[BAJO]"
@@ -73,7 +78,7 @@ echo $(whiteb "Velocidad máxima TCP/IP:") $(expr $datarate / 2) Mbps
 
 echo "Midiendo latencia durante 1 minuto..."
 
-default_gateway=$(default_gateway)
+default_gateway=$(default_gateway_$OS)
 
 ping_host 8.8.8.8 dns
 ping_host $default_gateway gateway
