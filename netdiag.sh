@@ -52,7 +52,7 @@ function record_current_wifi_details_darwin { /System/Library/PrivateFrameworks/
 function default_gateway_linux { ip route show | head -n 1 | sed 's/default via \(.*\) dev.*/\1/'; }
 function interface_name { echo /sys/class/net/*/wireless | awk -F'/' '{ print $5 }'; }
 function wifi_signal_linux { grep "signal" $OUT_DIR/current_wifi | awk '{ print $2 }'; }
-function wifi_noise_linux { echo "0"; }
+function wifi_noise_linux { echo; } # I need to investigate if noise is reported in Linux
 function wifi_phy_rate_linux { grep "tx bitrate" netreport/wifi_data | awk '{ print $3 }'; }
 function record_current_wifi_details_linux { iw dev $(interface_name) link > $OUT_DIR/current_wifi; }
 
@@ -72,16 +72,22 @@ record_ip_details
 record_current_wifi_details_$OS
 
 signal=$(wifi_signal_$OS)
-noise=$(wifi_noise_$OS)
 datarate=$(wifi_phy_rate_$OS)
-snr=$(expr $signal - $noise)
-signal_status=[$(green "BUENA" )] && [[ $signal -lt -67 ]] && signal_status="[BAJA]"
-snr_status=[$(green "BUENO")] && [[ $snr -lt 25 ]] && snr_status="[BAJO]"
+signal_status="[$(green "BUENA")]" && [[ $signal -lt -67 ]] && signal_status="[$(red "BAJA")]"
+
+noise=$(wifi_noise_$OS)
 
 echo $(lightblueb "Resultado:")
 echo $(whiteb "Señal:") $signal dBm $signal_status
-echo $(whiteb "Interferencia:") $noise dBm
-echo $(whiteb "SNR:") $snr dBm $snr_status
+
+if [[ -n $noise ]]
+then
+  snr=$(expr $signal - $noise)
+  snr_status="[$(green "BUENO")]" && [[ $snr -lt 25 ]] && snr_status="[$(red "BAJO")]"
+  echo $(whiteb "Interferencia:") $noise dBm
+  echo $(whiteb "SNR:") $snr dBm $snr_status
+fi
+
 echo $(whiteb "Data rate PHY:") $datarate Mbps
 echo $(whiteb "Velocidad máxima TCP/IP:") $(expr $datarate / 2) Mbps
 
