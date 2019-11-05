@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# ***** Helpers *****
-
 # functions to print out using colors
 end="\033[0m"
 black="\033[0;30m"
@@ -38,9 +36,7 @@ function purpleb { echo -e "${purpleb}${1}${end}"; }
 function lightblue { echo -e "${lightblue}${1}${end}"; }
 function lightblueb { echo -e "${lightblueb}${1}${end}"; }
 
-# Functions to fetch network data
-
-# Mac OSX Specific Functions
+# Mac OSX Specific Network Functions
 function default_gateway_darwin { netstat -nr | grep -m 1 default | awk '{print $2}'; }
 function wifi_signal_darwin { cat $OUT_DIR/current_wifi | grep agrCtlRSSI | awk '{print $2}'; }
 function wifi_noise_darwin { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk '{print $2}'; }
@@ -48,21 +44,25 @@ function tx_phy_data_rate_darwin { cat $OUT_DIR/current_wifi | grep lastTxRate |
 function rx_phy_data_rate_darwin { echo; } # OSX does not report Rx data rate
 function record_current_wifi_details_darwin { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
 
-# Linux Specific Functions
-
-function default_gateway_linux { ip route show | head -n 1 | sed 's/default via \(.*\) dev.*/\1/'; }
+# Linux Specific Network Functions
 function interface_name { echo /sys/class/net/*/wireless | awk -F'/' '{ print $5 }'; }
+function default_gateway_linux { ip route show | head -n 1 | sed 's/default via \(.*\) dev.*/\1/'; }
 function wifi_signal_linux { grep "signal" $OUT_DIR/current_wifi | awk '{ print $2 }'; }
 function wifi_noise_linux { echo; } # I need to investigate if noise is reported in Linux
 function tx_phy_data_rate_linux { grep "tx bitrate" $OUT_DIR/current_wifi | awk '{ print $3 }'; }
 function rx_phy_data_rate_linux { grep "rx bitrate" $OUT_DIR/current_wifi | awk '{ print $3 }'; }
 function record_current_wifi_details_linux { iw dev $(interface_name) link > $OUT_DIR/current_wifi; }
 
-# Mac OSX and Linux Functions
+# Mac OSX and Linux Network Functions
 function record_ip_details { ifconfig > $OUT_DIR/ifconfig; } 
 function ping_host { ping -c 60 $1 > $OUT_DIR/$2_ping & }
 
-# ***** Run analysis *****
+# Percentile calculation
+function p50 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.50)]}'; }
+function p90 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.90)]}'; }
+function p95 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.95)]}'; }
+
+# ***** Analysis Run *****
 
 OS=`uname -s | awk '{ print tolower($0) }'`
 OUT_DIR=netreport
@@ -108,8 +108,6 @@ ping_host 8.8.8.8 dns
 ping_host $default_gateway gateway
 wait
 
-echo "Completado"
-
 gateway_ping_summary=`tail -n 1 $OUT_DIR/gateway_ping | sed 's/.*= \(.*\) ms/\1/'`
 gateway_avg_ping=`echo $gateway_ping_summary | awk -F / '{ print $2 }'`
 gateway_max_ping=`echo $gateway_ping_summary | awk -F / '{ print $3 }'`
@@ -121,7 +119,13 @@ dns_max_ping=`echo $dns_ping_summary | awk -F / '{ print $3 }'`
 echo $(lightblueb "Resultado:")
 echo $(whiteb "Default Gateway ($default_gateway):")
 echo $(whiteb "Avg:") $gateway_avg_ping ms
+echo $(whiteb "P50:") $(p50 $OUT_DIR/gateway_ping) ms
+echo $(whiteb "P90:") $(p90 $OUT_DIR/gateway_ping) ms
+echo $(whiteb "P95:") $(p95 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "Max:") $gateway_max_ping ms
 echo $(whiteb "Google DNS (8.8.8.8):")
 echo $(whiteb "Avg:") $dns_avg_ping ms
+echo $(whiteb "P50:") $(p50 $OUT_DIR/dns_ping) ms
+echo $(whiteb "P90:") $(p90 $OUT_DIR/dns_ping) ms
+echo $(whiteb "P95:") $(p95 $OUT_DIR/dns_ping) ms
 echo $(whiteb "Max:") $dns_max_ping ms
