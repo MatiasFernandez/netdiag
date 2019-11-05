@@ -44,7 +44,8 @@ function lightblueb { echo -e "${lightblueb}${1}${end}"; }
 function default_gateway_darwin { netstat -nr | grep -m 1 default | awk '{print $2}'; }
 function wifi_signal_darwin { cat $OUT_DIR/current_wifi | grep agrCtlRSSI | awk '{print $2}'; }
 function wifi_noise_darwin { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk '{print $2}'; }
-function wifi_phy_rate_darwin { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
+function tx_phy_data_rate_darwin { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
+function rx_phy_data_rate_darwin { echo; } # OSX does not report Rx data rate
 function record_current_wifi_details_darwin { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
 
 # Linux Specific Functions
@@ -53,7 +54,8 @@ function default_gateway_linux { ip route show | head -n 1 | sed 's/default via 
 function interface_name { echo /sys/class/net/*/wireless | awk -F'/' '{ print $5 }'; }
 function wifi_signal_linux { grep "signal" $OUT_DIR/current_wifi | awk '{ print $2 }'; }
 function wifi_noise_linux { echo; } # I need to investigate if noise is reported in Linux
-function wifi_phy_rate_linux { grep "tx bitrate" netreport/wifi_data | awk '{ print $3 }'; }
+function tx_phy_data_rate_linux { grep "tx bitrate" $OUT_DIR/wifi_data | awk '{ print $3 }'; }
+function rx_phy_data_rate_linux { grep "rx bitrate" $OUT_DIR/wifi_data | awk '{ print $3 }'; }
 function record_current_wifi_details_linux { iw dev $(interface_name) link > $OUT_DIR/current_wifi; }
 
 # Mac OSX and Linux Functions
@@ -72,7 +74,8 @@ record_ip_details
 record_current_wifi_details_$OS
 
 signal=$(wifi_signal_$OS)
-datarate=$(wifi_phy_rate_$OS)
+tx_data_rate=$(tx_phy_data_rate_$OS)
+rx_data_rate=$(rx_phy_data_rate_$OS)
 signal_status="[$(green "BUENA")]" && [[ $signal -lt -67 ]] && signal_status="[$(red "BAJA")]"
 
 noise=$(wifi_noise_$OS)
@@ -88,8 +91,14 @@ then
   echo $(whiteb "SNR:") $snr dBm $snr_status
 fi
 
-echo $(whiteb "Data rate PHY:") $datarate Mbps
-echo $(whiteb "Velocidad máxima TCP/IP:") $(expr $datarate / 2) Mbps
+echo $(whiteb "Tx PHY Data rate:") $tx_data_rate Mbps
+echo $(whiteb "Tx máximo ideal (TCP/IP):") $(expr $tx_data_rate / 2) Mbps
+
+if [[ -n $rx_data_rate ]]
+then
+  echo $(whiteb "Rx PHY Data rate:") $rx_data_rate Mbps
+  echo $(whiteb "Rx máximo ideal (TCP/IP):") $(expr $rx_data_rate / 2) Mbps
+fi
 
 echo "Midiendo latencia durante 1 minuto..."
 
