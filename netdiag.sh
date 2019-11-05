@@ -47,6 +47,15 @@ function wifi_noise_darwin { cat $OUT_DIR/current_wifi | grep agrCtlNoise | awk 
 function wifi_phy_rate_darwin { cat $OUT_DIR/current_wifi | grep lastTxRate | awk '{print $2}'; }
 function record_current_wifi_details_darwin { /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I > $OUT_DIR/current_wifi; }
 
+# Linux Specific Functions
+
+function default_gateway_linux { ip route show | head -n 1 | sed 's/default via \(.*\) dev.*/\1/'; }
+function interface_name { echo /sys/class/net/*/wireless | awk -F'/' '{ print $5 }'; }
+function wifi_signal_linux { grep "signal" $OUT_DIR/current_wifi | awk '{ print $2 }'; }
+function wifi_noise_linux { echo "0"; }
+function wifi_phy_rate_linux { grep "tx bitrate" netreport/wifi_data | awk '{ print $3 }'; }
+function record_current_wifi_details_linux { iw dev $(interface_name) link > $OUT_DIR/current_wifi; }
+
 # Mac OSX and Linux Functions
 function record_ip_details { ifconfig > $OUT_DIR/ifconfig; } 
 function ping_host { ping -c 60 $1 > $OUT_DIR/$2_ping & }
