@@ -54,8 +54,8 @@ function default_gateway_linux { ip route show | head -n 1 | sed 's/default via 
 function interface_name { echo /sys/class/net/*/wireless | awk -F'/' '{ print $5 }'; }
 function wifi_signal_linux { grep "signal" $OUT_DIR/current_wifi | awk '{ print $2 }'; }
 function wifi_noise_linux { echo; } # I need to investigate if noise is reported in Linux
-function tx_phy_data_rate_linux { grep "tx bitrate" $OUT_DIR/wifi_data | awk '{ print $3 }'; }
-function rx_phy_data_rate_linux { grep "rx bitrate" $OUT_DIR/wifi_data | awk '{ print $3 }'; }
+function tx_phy_data_rate_linux { grep "tx bitrate" $OUT_DIR/current_wifi | awk '{ print $3 }'; }
+function rx_phy_data_rate_linux { grep "rx bitrate" $OUT_DIR/current_wifi | awk '{ print $3 }'; }
 function record_current_wifi_details_linux { iw dev $(interface_name) link > $OUT_DIR/current_wifi; }
 
 # Mac OSX and Linux Functions
