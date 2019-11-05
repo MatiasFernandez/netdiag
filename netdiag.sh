@@ -85,19 +85,19 @@ echo $(whiteb "Señal:") $signal dBm $signal_status
 
 if [[ -n $noise ]]
 then
-  snr=$(expr $signal - $noise)
+  snr=$(echo "$signal - $noise" | bc)
   snr_status="[$(green "BUENO")]" && [[ $snr -lt 25 ]] && snr_status="[$(red "BAJO")]"
   echo $(whiteb "Interferencia:") $noise dBm
   echo $(whiteb "SNR:") $snr dBm $snr_status
 fi
 
 echo $(whiteb "Tx PHY Data rate:") $tx_data_rate Mbps
-echo $(whiteb "Tx máximo ideal (TCP/IP):") $(expr $tx_data_rate / 2) Mbps
+echo $(whiteb "Tx máximo ideal (TCP/IP):") $(echo "$tx_data_rate / 2" | bc) Mbps
 
 if [[ -n $rx_data_rate ]]
 then
   echo $(whiteb "Rx PHY Data rate:") $rx_data_rate Mbps
-  echo $(whiteb "Rx máximo ideal (TCP/IP):") $(expr $rx_data_rate / 2) Mbps
+  echo $(whiteb "Rx máximo ideal (TCP/IP):") $(echo "$rx_data_rate / 2" | bc) Mbps
 fi
 
 echo "Midiendo latencia durante 1 minuto..."
