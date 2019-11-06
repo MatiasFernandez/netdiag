@@ -63,9 +63,19 @@ function p50 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk
 function p90 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.90)]}'; }
 function p95 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.95)]}'; }
 
+function format_as_bad_when_low { result=$(red BAJ$4) && [[ $1 -gt $2 ]] && result=$(yellow MEDI$4) && [[ $1 -gt $3 ]] && result=$(green ALT$4); echo $result; }
+function format_as_bad_when_high { result=$(green BAJ$4) && [[ $1 -gt $2 ]] && result=$(yellow MEDI$4) && [[ $1 -gt $3 ]] && result=$(red ALT$4); echo $result; }
+
 # ***** Analysis Run *****
 
 OS=`uname -s | awk '{ print tolower($0) }'`
+LOW_SIGNAL=-65
+MED_SIGNAL=-60
+LOW_SNR=25
+MED_SNR=30
+LOW_NOISE=-90
+MED_NOISE=-87
+
 OUT_DIR=netreport
 mkdir -p $OUT_DIR
 
@@ -78,18 +88,15 @@ signal=$(wifi_signal_$OS)
 tx_phy_rate=$(tx_phy_data_rate_$OS)
 tx_tcp_rate=$(echo "$tx_phy_rate / 2" | bc)
 rx_data_rate=$(rx_phy_data_rate_$OS)
-signal_status="$(green "BUENA")" && [[ $signal -lt -65 ]] && signal_status="$(red "BAJA")"
 noise=$(wifi_noise_$OS)
 
-echo $(whiteb "Señal:") $signal dBm [$signal_status]
+echo $(whiteb "Señal:") $signal dBm [$(format_as_bad_when_low $signal $LOW_SIGNAL $MED_SIGNAL A)]
 
 if [[ -n $noise ]]
 then
   snr=$(echo "$signal - $noise" | bc)
-  snr_status="$(green "ALTA")" && [[ $snr -lt 25 ]] && snr_status="$(red "BAJA")"
-  noise_status="$(green "BAJA")" && [[ $noise -gt -90 ]] && noise_status="$(red "ALTA")"
-  echo $(whiteb "Interferencia:") $noise dBm [$noise_status]
-  echo $(whiteb "SNR:") $snr dBm [$snr_status]
+  echo $(whiteb "Interferencia:") $noise dBm [$(format_as_bad_when_high $noise $LOW_NOISE $MED_NOISE A)]
+  echo $(whiteb "SNR:") $snr dBm [$(format_as_bad_when_low $snr $LOW_SNR $MED_SNR A)]
 fi
 
 echo $(whiteb "Tx PHY Data rate:") $tx_phy_rate Mbps
@@ -127,6 +134,7 @@ echo $(whiteb "P90:") $(p90 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "P95:") $(p95 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "Max:") $gateway_max_ping ms
 echo $(whiteb "Packet Loss:") $gateway_ping_packet_loss %
+
 echo -e "\n$(whiteb "Latencia a Google DNS (8.8.8.8):")"
 echo $(whiteb "Avg:") $dns_avg_ping ms
 echo $(whiteb "P50:") $(p50 $OUT_DIR/dns_ping) ms
@@ -137,4 +145,4 @@ echo $(whiteb "Packet Loss:") $dns_ping_packet_loss %
 
 echo -e "\n$(greenb "Recomendaciones:")"
 echo "* Con tu conexión Wi-Fi actual no podes alcanzar mas de $(whiteb "$tx_tcp_rate Mbps") de data rate. Asegurate que este numero sea mayor que el servicio de internet que tenes contratado"
-[[ $signal_status =~ BAJA ]] && echo "* $(red "Tu señal es muy baja"). Proba acercarte al access point o reconectar tu Wi-Fi para ver si mejora"
+[[ $signal -lt $LOW_SIGNAL ]] && echo "* $(red "Tu señal es muy baja"). Proba acercarte al access point o reconectar tu Wi-Fi para ver si mejora"
