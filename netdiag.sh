@@ -63,8 +63,8 @@ function p50 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk
 function p90 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.90)]}'; }
 function p95 { cat $1 | grep time | sed 's/.*time=\(.*\) ms/\1/' | sort -n | awk '{all[NR] = $0} END{print all[int(NR*0.95)]}'; }
 
-function format_as_bad_when_low { result=$(red BAJ$4) && [[ $1 -gt $2 ]] && result=$(yellow MEDI$4) && [[ $1 -gt $3 ]] && result=$(green ALT$4); echo $result; }
-function format_as_bad_when_high { result=$(green BAJ$4) && [[ $1 -gt $2 ]] && result=$(yellow MEDI$4) && [[ $1 -gt $3 ]] && result=$(red ALT$4); echo $result; }
+function format_as_bad_when_low { result=$(red BAJ$4) && [[ $1 -ge $2 ]] && result=$(yellow MEDI$4) && [[ $1 -ge $3 ]] && result=$(green ALT$4); echo $result; }
+function format_as_bad_when_high { result=$(green BAJ$4) && (( $(echo "$1 > $2" |bc -l) )) && result=$(yellow MEDI$4) && (( $(echo "$1 > $3" |bc -l) )) && result=$(red ALT$4); echo $result; }
 
 # ***** Analysis Run *****
 
@@ -75,6 +75,10 @@ LOW_SNR=25
 MED_SNR=30
 LOW_NOISE=-90
 MED_NOISE=-87
+LOW_PING_SPIKE=50
+MED_PING_SPIKE=250
+LOW_PACKET_LOSS=0.1
+MED_PACKET_LOSS=0.5
 
 OUT_DIR=netreport
 mkdir -p $OUT_DIR
@@ -132,18 +136,20 @@ echo $(whiteb "Avg:") $gateway_avg_ping ms
 echo $(whiteb "P50:") $(p50 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "P90:") $(p90 $OUT_DIR/gateway_ping) ms
 echo $(whiteb "P95:") $(p95 $OUT_DIR/gateway_ping) ms
-echo $(whiteb "Max:") $gateway_max_ping ms
-echo $(whiteb "Packet Loss:") $gateway_ping_packet_loss %
+echo $(whiteb "Max:") $gateway_max_ping ms [$(format_as_bad_when_high $gateway_max_ping $LOW_PING_SPIKE $MED_PING_SPIKE A)]
+echo $(whiteb "Packet Loss:") $gateway_ping_packet_loss % [$(format_as_bad_when_high $gateway_ping_packet_loss $LOW_PACKET_LOSS $MED_PACKET_LOSS A)]
 
 echo -e "\n$(whiteb "Latencia a Google DNS (8.8.8.8):")"
 echo $(whiteb "Avg:") $dns_avg_ping ms
 echo $(whiteb "P50:") $(p50 $OUT_DIR/dns_ping) ms
 echo $(whiteb "P90:") $(p90 $OUT_DIR/dns_ping) ms
 echo $(whiteb "P95:") $(p95 $OUT_DIR/dns_ping) ms
-echo $(whiteb "Max:") $dns_max_ping ms
-echo $(whiteb "Packet Loss:") $dns_ping_packet_loss %
+echo $(whiteb "Max:") $dns_max_ping ms [$(format_as_bad_when_high $dns_max_ping $LOW_PING_SPIKE $MED_PING_SPIKE A)]
+echo $(whiteb "Packet Loss:") $dns_ping_packet_loss % [$(format_as_bad_when_high $dns_ping_packet_loss $LOW_PACKET_LOSS $MED_PACKET_LOSS A)]
 
 echo -e "\n$(greenb "Recomendaciones:")"
 echo "* Con tu conexión Wi-Fi actual no podes alcanzar mas de $(whiteb "$tx_tcp_rate Mbps") de data rate. Asegurate que este numero sea mayor que el servicio de internet que tenes contratado"
 [[ $signal -lt $LOW_SIGNAL ]] && echo "* $(red "Tu señal es muy baja"). Proba acercarte al access point o reconectar tu Wi-Fi para ver si mejora"
+(( $(echo "$gateway_max_ping >= $MED_PING_SPIKE" |bc -l) )) && echo "* $(red "Tu red Wi-Fi no es estable"). Se detectaron picos de latencia muy altos. Esto puede causar micro-cortes en videollamadas. Asegurate de tener buena señal y buen data rate"
+(( $(echo "$dns_max_ping >= $MED_PING_SPIKE" |bc -l) )) && (( $(echo "$gateway_max_ping < $LOW_PING_SPIKE" |bc -l) )) && echo "* $(red "Tu conexión a internet no es estable"). Se detectaron picos de latencia muy altos hacia internet pero no se corresponden con picos de latencia en tu red Wi-Fi. Esto puede causar micro-cortes en videollamadas. Asegurate de revisar tu modem o contactar a tu proveedor de internet"
 exit 0
