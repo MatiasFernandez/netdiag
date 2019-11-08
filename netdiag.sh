@@ -146,3 +146,4 @@ echo $(whiteb "Packet Loss:") $dns_ping_packet_loss %
 echo -e "\n$(greenb "Recomendaciones:")"
 echo "* Con tu conexión Wi-Fi actual no podes alcanzar mas de $(whiteb "$tx_tcp_rate Mbps") de data rate. Asegurate que este numero sea mayor que el servicio de internet que tenes contratado"
 [[ $signal -lt $LOW_SIGNAL ]] && echo "* $(red "Tu señal es muy baja"). Proba acercarte al access point o reconectar tu Wi-Fi para ver si mejora"
+exit 0
