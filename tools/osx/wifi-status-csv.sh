@@ -1,0 +1,1 @@
+/System/Library/PrivateFrameworks/Apple*.framework/Versions/Current/Resources/airport -I | awk -F ': ' '{print $2}' | (echo $(date +"%Y-%m-%dT%H:%M:%S%z") && cat) | awk '{if(NF){gsub(/^[\s,]+$/,""); printf c $0; c=","}else{printf "\n"; c=""}};END{printf "\n"}'
